@@ -24,7 +24,7 @@ virtuel :
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # sous Windows : .venv\Scripts\activate
+source .venv/bin/activate        
 pip install -r requirements.txt
 ```
 
@@ -63,10 +63,6 @@ jupyter lab
 
 ## Rapport
 
-Le rapport des exercices 6 et 7 se compile depuis les sources LaTeX :
-
-```bash
-pdflatex rapport_cifar.tex
-```
-
-Le PDF compilé (`rapport_cifar.pdf`) est également présent dans le dépôt.
+Deux rendus pdf.
+Le premier concerne les exercices mathématiques #FTML-maths.pdf
+Le second concerne le rapport sur les questions 6 et 7 du projet #FTML-cifar
