@@ -24,10 +24,6 @@ python -m venv .venv
 source .venv/bin/activate        
 pip install -r requirements.txt
 ```
-
-L'utilisation du flag `--recursive` lors du git clone est nécessaire pour
-récupérer les données du projet.
-
 ## Données
 
 Les jeux de données ne sont pas versionnés (taille et fichiers fournis par le cours).
