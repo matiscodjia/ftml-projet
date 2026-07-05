@@ -6,16 +6,13 @@ jeux de données fournis, et l'application au jeu de données CIFAR-10.
 
 ## Contenu
 
-- `exercices_1_3.ipynb` : vérifications numériques des exercices 1 à 3 (prédicteur
-  de Bayes, prédicteur optimal selon la perte, estimateur sans biais de la variance).
-- `exercices_4_5.ipynb` : exercice 4 (régression : OLS, Ridge, Lasso) et exercice 5
-  (classification : régression logistique, k-NN, SVC), avec analyse des données,
-  validation croisée et discussion des résultats.
-- `cifar_ex6_7.ipynb` : exercices 6 et 7 sur CIFAR-10. Exercice 6 (classification
-  supervisée : baselines, SVM, passage à l'échelle par Nyström) et exercice 7
-  (apprentissage de représentations non supervisé : PCA, dictionnaire K-means).
-- `rapport_cifar.tex` / `rapport_cifar.pdf` : rapport accompagnant les exercices 6 et 7.
-- `requirements.txt` : dépendances Python épinglées.
+- `exercices_*` : Dossier contenant les notebooks (la partie mathématique est
+dans le rapport)
+- `misc` : Éléments éparses de code et de rapport avant mise en forme du
+repository
+- `report.pdf` : Rapport associé au projet
+- `report.tex` : Code source du rapport
+- `requirements.txt` : Dépendances Python épinglées.
 
 ## Prérequis
 
@@ -27,6 +24,9 @@ python -m venv .venv
 source .venv/bin/activate        
 pip install -r requirements.txt
 ```
+
+L'utilisation du flag `--recursive` lors du git clone est nécessaire pour
+récupérer les données du projet.
 
 ## Données
 
@@ -46,7 +46,7 @@ data_cifar/cifar-10-batches-py/
     batches.meta
 ```
 
-### Données du projet (notebook `exercices_4_5.ipynb`)
+### Données du projet (Exercices 4 et 5)
 
 Les données de régression et de classification fournies avec le sujet sont attendues
 sous `FTML/project/data/regression/` et `FTML/project/data/classification/`
@@ -63,6 +63,5 @@ jupyter lab
 
 ## Rapport
 
-Deux rendus pdf.
-Le premier concerne les exercices mathématiques #FTML-maths.pdf
-Le second concerne le rapport sur les questions 6 et 7 du projet #FTML-cifar
+Rapport commun concatenant la partie mathématique des exercices 1 à 3 et la
+partie explication et analyse des exercices 6 et 7.
