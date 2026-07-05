@@ -1,0 +1,422 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+
+\newtheorem{proposition}{Proposition}
+\renewcommand{\proofname}{Démonstration}
+\renewcommand{\contentsname}{Table des matières}
+\newtheorem{question}{Question}
+\theoremstyle{remark}
+\newtheorem*{remark}{Remarque}
+
+\titleformat{\section}{\large\bfseries\color{blue!40!black}}{\thesection}{1em}{}
+\titleformat{\subsection}{\bfseries}{\thesubsection}{1em}{}
+
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\Y}{\mathcal{Y}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\tr}{\mathrm{tr}}
+
+\title{\textbf{FTML 2026 --- Projet}\\[0.3em]\large Exercices 1 à 3 : partie mathématique}
+\author{Matis Codjia\\ \texttt{matis.codjia@epita.fr}
+  \and
+   Simon Naulet\\ \texttt{simon.naulet@epita.fr}
+  \and
+  Brendan Martin\\ \texttt{brendan.martin@epita.fr}
+  \and
+   Lilou Mayot\\ \texttt{lilou.mayot@epita.fr}}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2em}
+
+\tableofcontents
+
+\bigskip
+\noindent\textit{Convention : sauf mention contraire, toutes les espérances et probabilités conditionnelles sont prises par rapport à la loi conditionnelle de $Y$ sachant $X=x$, pour $x \in \X$ fixé.}
+
+\section{Bayes estimator and Bayes risk}
+
+\subsection*{Question 1 (M)}
+
+\paragraph{Setting proposé.}
+On considère le cadre de régression suivant.
+
+\begin{itemize}
+  \item Espace d'entrée : $\X = [30, 240]$, représentant un nombre d'images par seconde (FPS) ciblé par un utilisateur dans les paramètres d'un jeu vidéo.
+  \item Espace de sortie : $\Y = \R_+$, représentant la puissance consommée par une carte graphique, en Watts.
+  \item Loi jointe de $(X,Y)$ : $X \sim \mathcal{U}([30,240])$, et conditionnellement à $X=x$,
+  \[
+    Y \mid X = x \;=\; a + bx + \varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, \sigma^2),
+  \]
+  où $\varepsilon$ est indépendant de $X$, et $a, b, \sigma > 0$ sont des constantes fixées. Le bruit $\varepsilon$ modélise les fluctuations de mesure (charge CPU concurrente, throttling thermique, etc.).
+  \item Fonction de perte : la perte quadratique,
+  \[
+    l(\hat y, y) = (\hat y - y)^2.
+  \]
+\end{itemize}
+
+\paragraph{Calcul du prédicteur de Bayes.}
+
+\begin{proposition}
+Pour la perte quadratique, le prédicteur de Bayes vérifie, pour tout $x \in \X$,
+\[
+  f^*(x) = \E[Y \mid X = x].
+\]
+\end{proposition}
+
+\begin{proof}
+Par définition, $f^*$ minimise le risque réel $\E_{(X,Y)}[(f(X)-Y)^2]$ parmi toutes les fonctions $f : \X \to \Y$. En conditionnant par rapport à $X$,
+\[
+  \E_{(X,Y)}\big[(f(X)-Y)^2\big] = \E_X\Big[\E_{Y\mid X}\big[(f(X)-Y)^2 \mid X\big]\Big].
+\]
+Comme $f(X)$ ne dépend que de $X$, il suffit de minimiser, pour chaque $x$ fixé, la quantité
+\[
+  h(c) = \E_{Y\mid X}\big[(c-Y)^2 \mid X=x\big]
+\]
+par rapport à $c \in \R$. On développe :
+\[
+  h(c) = \E[(c - \E[Y\mid X=x])^2] + 2(c - \E[Y\mid X=x])\underbrace{\E[\E[Y\mid X=x] - Y \mid X=x]}_{=0} + \Var(Y\mid X=x),
+\]
+où le terme croisé est nul car $\E[Y \mid X=x] - Y$ est centré conditionnellement à $X=x$. On obtient ainsi
+\[
+  h(c) = (c - \E[Y\mid X=x])^2 + \Var(Y \mid X=x),
+\]
+qui est minimal (et atteint son minimum en un point unique) en $c^* = \E[Y \mid X=x]$. D'où $f^*(x) = \E[Y\mid X=x]$.
+\end{proof}
+
+Dans notre setting, $Y \mid X=x \sim \mathcal{N}(a+bx, \sigma^2)$, donc $\E[Y\mid X=x] = a+bx$, et
+\[
+  \boxed{f^*(x) = a + bx}.
+\]
+
+\paragraph{Calcul du risque de Bayes.}
+Le risque de Bayes est le risque réel évalué en $f^*$ :
+\[
+  R^* = \E_{(X,Y)}\big[(f^*(X)-Y)^2\big] = \E\big[(a+bX - (a+bX+\varepsilon))^2\big] = \E[\varepsilon^2] = \Var(\varepsilon) = \sigma^2,
+\]
+puisque $\varepsilon$ est centré. D'où
+\[
+  \boxed{R^* = \sigma^2}.
+\]
+
+\bigskip
+\begin{remark}
+La Question 2 (C) de cet exercice (proposer un estimateur $\tilde f$ différent de $f^*$ et comparer leurs erreurs de généralisation empiriques) est une question de simulation. Le code correspondant est fourni séparément sous forme de notebook.
+\end{remark}
+
+\section{Bayes risk with absolute loss}
+
+\subsection*{Question 0 (M)}
+
+On cherche une fonction $f : \R \to \R$ dont la dérivée s'annule en un point $x_0$ sans que $x_0$ soit un extremum local.
+
+\begin{proposition}
+La fonction $f(x) = x^3$ convient, avec $x_0 = 0$.
+\end{proposition}
+
+\begin{proof}
+On a $f'(x) = 3x^2$, donc $f'(0) = 0$. Cependant, pour tout $x < 0$, $f(x) = x^3 < 0 = f(0)$, et pour tout $x > 0$, $f(x) = x^3 > 0 = f(0)$. Ainsi, dans tout voisinage de $0$, $f$ prend des valeurs strictement inférieures et strictement supérieures à $f(0)$ : $x_0=0$ n'est ni un minimum local, ni un maximum local. C'est un point d'inflexion à tangente horizontale.
+\end{proof}
+
+
+\subsection*{Question 1 (M + C)}
+
+On cherche un setting pour lequel $f^*_{l_{\text{absolue}}} \neq f^*_{l_{\text{carrée}}}$.
+
+\paragraph{Setting proposé.}
+On prend $\X = \R$, $\Y = \R$, $X$ de loi quelconque, et conditionnellement à $X = x$ :
+\[
+  Y \mid X = x \;=\; x + \varepsilon, \qquad \varepsilon \sim \mathrm{Exp}(1) \ \text{(loi exponentielle de paramètre 1)},
+\]
+avec $\varepsilon$ indépendant de $X$. La densité de $\varepsilon$ est $p(t) = e^{-t}\mathbf{1}_{t \geq 0}$.
+
+Le bruit $\varepsilon$ étant asymétrique, sa moyenne et sa médiane diffèrent :
+\[
+  \E[\varepsilon] = 1, \qquad \mathrm{med}(\varepsilon) = \ln 2 \approx 0{,}693.
+\]
+(La médiane de $\mathrm{Exp}(1)$ vérifie $1-e^{-m}=\tfrac12$, soit $m = \ln 2$.)
+
+Par conséquent :
+\[
+  f^*_{l_{\text{carrée}}}(x) = \E[Y\mid X=x] = x + 1, \qquad
+  f^*_{l_{\text{absolue}}}(x) = \mathrm{med}(Y \mid X=x) = x + \ln 2
+\]
+(le second résultat étant justifié rigoureusement en Question 2). Comme $\ln 2 \neq 1$, les deux prédicteurs de Bayes sont distincts.
+
+\paragraph{Comparaison explicite des risques en perte absolue.}
+On va montrer directement que $f^*_{l_{\text{carrée}}}$, bien qu'optimal pour la perte quadratique, est \emph{sous-optimal} pour la perte absolue.
+
+Pour $c \geq 0$ fixé, calculons $\E|\varepsilon - c|$ avec $\varepsilon \sim \mathrm{Exp}(1)$ :
+\[
+  \E|\varepsilon - c| = \int_0^c (c-t)e^{-t}\,dt + \int_c^{+\infty}(t-c)e^{-t}\,dt.
+\]
+Pour la première intégrale, en utilisant $\int_0^c t e^{-t}\,dt = 1-(c+1)e^{-c}$ :
+\[
+  \int_0^c (c-t)e^{-t}\,dt = c(1-e^{-c}) - \big[1-(c+1)e^{-c}\big] = c - 1 + e^{-c}.
+\]
+Pour la seconde, le changement de variable $u = t-c$ donne :
+\[
+  \int_c^{+\infty}(t-c)e^{-t}\,dt = e^{-c}\int_0^{+\infty} u\,e^{-u}\,du = e^{-c}.
+\]
+D'où, pour tout $c \geq 0$ :
+\[
+  \E|\varepsilon - c| = c - 1 + 2e^{-c}.
+\]
+
+On évalue cette expression aux deux candidats :
+\[
+  R_{l_{\text{absolue}}}(f^*_{l_{\text{carrée}}}) = \E\big|\,1 - \varepsilon\,\big| = \E|\varepsilon - 1| = 1 - 1 + 2e^{-1} = \frac{2}{e} \approx 0{,}736,
+\]
+\[
+  R_{l_{\text{absolue}}}(f^*_{l_{\text{absolue}}}) = \E|\varepsilon - \ln 2| = \ln 2 - 1 + 2e^{-\ln 2} = \ln 2 - 1 + 2\cdot\tfrac12 = \ln 2 \approx 0{,}693.
+\]
+(On a utilisé $|f^*_{l_{\text{carrée}}}(X) - Y| = |(X+1)-(X+\varepsilon)| = |1-\varepsilon|$, et de même pour le second terme.)
+
+On obtient donc
+\[
+  \boxed{R_{l_{\text{absolue}}}(f^*_{l_{\text{absolue}}}) = \ln 2 \;<\; \frac{2}{e} = R_{l_{\text{absolue}}}(f^*_{l_{\text{carrée}}})},
+\]
+ce qui confirme, sur un exemple totalement explicite, que le prédicteur optimal pour la perte quadratique n'est pas optimal pour la perte absolue. La vérification numérique par simulation (génération d'échantillons, calcul des risques empiriques) est fournie dans le notebook associé.
+
+\subsection*{Question 2 (M) --- Cas général}
+
+\paragraph{Cadre et hypothèses.}
+Pour $x \in \X$ fixé, on suppose que $Y \mid X=x$ admet une densité continue $p_{Y\mid X=x}$, et que $Y\mid X=x$ admet un moment d'ordre 1, c'est-à-dire $\E[|Y| \mid X=x] < +\infty$. On note $F$ la fonction de répartition associée à $p_{Y\mid X=x}$, et l'on cherche
+\[
+  f^*_{l_{\text{absolue}}}(x) = \operatorname*{arg\,min}_{z \in \R} g(z), \qquad g(z) = \int_{\R} |y-z|\, p_{Y\mid X=x}(y)\,dy.
+\]
+
+\paragraph{Bonne définition de $g$.}
+Pour $z \in \R$ fixé, l'inégalité triangulaire donne $|y-z| \leq |y| + |z|$, donc
+\[
+  g(z) \leq \E[|Y| \mid X=x] + |z| < +\infty
+\]
+par hypothèse de moment d'ordre 1. Ainsi $g(z)$ est bien définie (finie) pour tout $z \in \R$.
+
+\paragraph{Calcul de $g'(z)$.}
+On découpe l'intégrale en deux morceaux selon la position de $y$ par rapport à $z$ :
+\[
+  g(z) = \int_{-\infty}^{z} (z-y)\,p(y)\,dy + \int_{z}^{+\infty} (y-z)\,p(y)\,dy,
+\]
+où l'on note $p = p_{Y\mid X=x}$ pour simplifier. La densité $p$ étant continue, chacune de ces deux intégrales est dérivable par rapport à $z$ (théorème de dérivation sous le signe intégrale, ou directement par la règle de Leibniz pour une borne variable) :
+
+\begin{itemize}
+  \item Pour le premier terme, $\dfrac{d}{dz}\displaystyle\int_{-\infty}^{z}(z-y)p(y)\,dy = \underbrace{(z-z)p(z)}_{=0} + \displaystyle\int_{-\infty}^z p(y)\,dy = F(z)$,
+  \item Pour le second, $\dfrac{d}{dz}\displaystyle\int_{z}^{+\infty}(y-z)p(y)\,dy = \underbrace{-(z-z)p(z)}_{=0} - \displaystyle\int_z^{+\infty} p(y)\,dy = -(1-F(z))$.
+\end{itemize}
+
+(Dans chaque cas, le terme de bord provenant de la dérivation de la borne $z$ s'annule car l'intégrande $(z-y)$, resp. $(y-z)$, vaut $0$ en $y=z$.)
+
+On obtient donc, pour tout $z \in \R$ :
+\[
+  \boxed{g'(z) = F(z) - (1-F(z)) = 2F(z) - 1}.
+\]
+
+\paragraph{Annulation de la dérivée.}
+\[
+  g'(z) = 0 \iff F(z) = \frac{1}{2} \iff z \text{ est une médiane de } Y \mid X=x.
+\]
+
+\paragraph{Nature du point critique.}
+Comme $p$ est continue, $F$ est de classe $\mathcal{C}^1$ et $g$ est de classe $\mathcal{C}^2$, avec
+\[
+  g''(z) = 2 p(z) \geq 0 \quad \text{pour tout } z.
+\]
+$g$ est donc convexe sur $\R$ : tout point critique de $g$ est un minimum global (et non un point d'inflexion comme à la Question 0, puisque $g'' \geq 0$ partout et pas seulement en un point). Si $g'' > 0$ en un voisinage du point critique (densité strictement positive), il s'agit même d'un minimum strict local ; la convexité globale garantit dans tous les cas qu'il s'agit d'un minimum global de $g$.
+
+\paragraph{Conclusion.}
+\[
+  \boxed{f^*_{l_{\text{absolue}}}(x) = \mathrm{med}(Y \mid X = x)}
+\]
+pour tout $x \in \X$, c'est-à-dire tout réel $z$ vérifiant $F(z) = 1/2$ (un tel $z$ existe et est unique dès que $F$ est strictement croissante, ce qui est le cas si $p > 0$ sur le support de la loi).
+
+\section{Expected value of empirical risk for OLS}
+
+\subsection*{Rappel du contexte}
+
+On se place dans le cadre fixed design, modèle linéaire : $y = X\theta^* + \varepsilon$, avec $\varepsilon$ un vecteur de bruit centré, de matrice de covariance $\sigma^2 I_n$, à composantes indépendantes. $X \in \R^{n \times d}$ est injective (donc $d \leq n$ et $X^TX$ est inversible). L'estimateur OLS est $\hat\theta = (X^TX)^{-1}X^Ty$. On veut établir
+\[
+  \E\big[R_X(\hat\theta)\big] = \frac{n-d}{n}\sigma^2. \qquad \text{(Proposition 1)}
+\]
+
+\subsection*{Question 1 (M)}
+
+\paragraph{Comparaison avec le risque de Bayes.}
+Pour la perte quadratique et ce modèle linéaire (bruit centré de variance $\sigma^2$), le prédicteur de Bayes est $f^*(x) = x^T\theta^*$ (cf. Exercice 1, Question 1, appliqué ici), et le risque de Bayes associé est
+\[
+  R^* = \sigma^2.
+\]
+On compare cette quantité à $\E[R_X(\hat\theta)] = \frac{n-d}{n}\sigma^2$. Puisque $0 < d \leq n$ (et en pratique $d<n$ strictement, sinon $X^TX$ n'est inversible pour le cas limite seulement si $d=n$ injective ce qui reste possible mais $\frac{n-d}{n}=0$), on a
+\[
+  0 \leq \frac{n-d}{n} < 1 \quad \text{(dès que } d \geq 1\text{)},
+\]
+donc
+\[
+  \boxed{\E[R_X(\hat\theta)] = \frac{n-d}{n}\sigma^2 \;\leq\; \sigma^2 = R^*}.
+\]
+
+\paragraph{Interprétation.}
+Le risque empirique moyen de l'estimateur OLS, \emph{évalué sur les mêmes points $X$ que ceux ayant servi à l'estimation} (fixed design), \textbf{sous-estime} le risque de Bayes (= la variance irréductible du bruit). 
+\begin{itemize}
+  \item \textbf{En fonction de $d$} : plus le nombre de paramètres $d$ est grand (modèle plus flexible), plus l'écart $\dfrac{d}{n}\sigma^2$ entre risque de Bayes et risque empirique espéré est important : le modèle a plus de degrés de liberté pour s'ajuster au bruit de l'échantillon (sur-apprentissage). À la limite $d=n$ (saturée, $X$ carrée inversible), $\E[R_X(\hat\theta)] = 0$ : le modèle interpole parfaitement les données d'entraînement et le risque empirique ne reflète plus du tout l'erreur de généralisation.
+  \item \textbf{En fonction de $n$} : pour $d$ fixé, $\dfrac{n-d}{n} = 1-\dfrac{d}{n} \xrightarrow[n\to\infty]{} 1$. Le biais d'optimisme s'atténue lorsque l'on dispose de davantage de données : l'estimation $\hat\theta$ se rapproche de $\theta^*$ et le risque empirique tend vers le risque de Bayes.
+\end{itemize}
+
+\subsection*{Question 2 (M)}
+
+On veut montrer que
+\[
+  \E\big[R_n(\hat\theta)\big] = \E_\varepsilon\Big[\frac{1}{n}\big\|\big(I_n - X(X^TX)^{-1}X^T\big)\varepsilon\big\|^2\Big].
+\]
+
+\begin{proof}
+Par définition, $R_n(\hat\theta) = \frac1n \|y - X\hat\theta\|^2$. On exprime le résidu $y-X\hat\theta$ en fonction de $\varepsilon$. D'une part, $y = X\theta^* + \varepsilon$. D'autre part,
+\[
+  \hat\theta = (X^TX)^{-1}X^Ty = (X^TX)^{-1}X^T(X\theta^*+\varepsilon) = \theta^* + (X^TX)^{-1}X^T\varepsilon,
+\]
+donc
+\[
+  X\hat\theta = X\theta^* + X(X^TX)^{-1}X^T\varepsilon.
+\]
+On en déduit :
+\[
+  y - X\hat\theta = \big(X\theta^* + \varepsilon\big) - \big(X\theta^* + X(X^TX)^{-1}X^T\varepsilon\big) = \varepsilon - X(X^TX)^{-1}X^T\varepsilon = \big(I_n - X(X^TX)^{-1}X^T\big)\varepsilon.
+\]
+Ainsi, en notant $A = I_n - X(X^TX)^{-1}X^T$, on a $y-X\hat\theta = A\varepsilon$, donc
+\[
+  R_n(\hat\theta) = \frac1n\|A\varepsilon\|^2.
+\]
+Cette égalité étant vraie pour toute réalisation de $\varepsilon$ (donc de $y$), elle reste vraie en espérance :
+\[
+  \E\big[R_n(\hat\theta)\big] = \E_\varepsilon\Big[\frac1n\|A\varepsilon\|^2\Big].
+\]
+\end{proof}
+
+\subsection*{Question 3 (M)}
+
+Pour $A \in \R^{n\times n}$, on veut montrer
+\[
+  \sum_{(i,j)\in[1,n]^2} A_{ij}^2 = \tr(A^TA).
+\]
+
+\begin{proof}
+Par définition du produit matriciel et de la trace,
+\[
+  \tr(A^TA) = \sum_{i=1}^n (A^TA)_{ii} = \sum_{i=1}^n \sum_{j=1}^n (A^T)_{ij}A_{ji} = \sum_{i=1}^n\sum_{j=1}^n A_{ji}A_{ji} = \sum_{i=1}^n\sum_{j=1}^n A_{ji}^2,
+\]
+où l'on a utilisé $(A^T)_{ij} = A_{ji}$. En renommant les indices de sommation ($i\leftrightarrow j$), on obtient bien
+\[
+  \tr(A^TA) = \sum_{(i,j)\in[1,n]^2} A_{ij}^2.
+\]
+\end{proof}
+
+\subsection*{Question 4 (M)}
+
+On veut montrer que pour $A \in \R^{n\times n}$ déterministe et $\varepsilon$ comme dans le modèle (composantes indépendantes, centrées, de variance $\sigma^2$),
+\[
+  \E_\varepsilon\Big[\frac1n\|A\varepsilon\|^2\Big] = \frac{\sigma^2}{n}\tr(A^TA).
+\]
+
+\begin{proof}
+On note $(A\varepsilon)_i = \sum_{j=1}^n A_{ij}\varepsilon_j$ la $i$-ème coordonnée de $A\varepsilon$. Alors
+\[
+  \|A\varepsilon\|^2 = \sum_{i=1}^n (A\varepsilon)_i^2 = \sum_{i=1}^n\Big(\sum_{j=1}^n A_{ij}\varepsilon_j\Big)^2 = \sum_{i=1}^n \sum_{j=1}^n\sum_{k=1}^n A_{ij}A_{ik}\,\varepsilon_j\varepsilon_k.
+\]
+On prend l'espérance, en utilisant la linéarité et le fait que les $A_{ij}A_{ik}$ sont des constantes :
+\[
+  \E\big[\|A\varepsilon\|^2\big] = \sum_{i,j,k} A_{ij}A_{ik}\,\E[\varepsilon_j\varepsilon_k].
+\]
+Or, par indépendance et centrage des $\varepsilon_j$ : $\E[\varepsilon_j\varepsilon_k] = 0$ si $j\neq k$, et $\E[\varepsilon_j^2] = \Var(\varepsilon_j) = \sigma^2$ si $j=k$. C'est-à-dire $\E[\varepsilon_j\varepsilon_k] = \sigma^2 \delta_{jk}$. La double somme sur $j,k$ se réduit donc à $j=k$ :
+\[
+  \E\big[\|A\varepsilon\|^2\big] = \sum_{i=1}^n\sum_{j=1}^n A_{ij}^2\,\sigma^2 = \sigma^2 \sum_{(i,j)} A_{ij}^2 \overset{\text{(Q3)}}{=} \sigma^2\,\tr(A^TA).
+\]
+En divisant par $n$, on conclut :
+\[
+  \E_\varepsilon\Big[\frac1n\|A\varepsilon\|^2\Big] = \frac{\sigma^2}{n}\tr(A^TA).
+\]
+\end{proof}
+
+\subsection*{Question 5 (M)}
+
+On note $A = I_n - X(X^TX)^{-1}X^T$, et on veut montrer $A^TA = A$.
+
+\begin{proof}
+On pose $P = X(X^TX)^{-1}X^T$, tel que $A = I_n - P$. On montre deux propriétés de $P$.
+
+\emph{$P$ est symétrique} : comme $X^TX$ est symétrique, son inverse $(X^TX)^{-1}$ l'est aussi, donc
+\[
+  P^T = X\big((X^TX)^{-1}\big)^TX^T = X(X^TX)^{-1}X^T = P.
+\]
+
+\emph{$P$ est idempotente} ($P^2=P$) :
+\[
+  P^2 = X(X^TX)^{-1}X^TX(X^TX)^{-1}X^T = X(X^TX)^{-1}\underbrace{(X^TX)(X^TX)^{-1}}_{=I_d}X^T = X(X^TX)^{-1}X^T = P.
+\]
+
+On en déduit que $A=I_n-P$ est elle-même symétrique :
+\[
+  A^T = I_n^T - P^T = I_n - P = A,
+\]
+et idempotente :
+\[
+  A^2 = (I_n-P)^2 = I_n - 2P + P^2 = I_n - 2P + P = I_n - P = A.
+\]
+Finalement,
+\[
+  A^TA = A \cdot A = A^2 = A.
+\]
+\end{proof}
+
+\subsection*{Question 6 (M) --- Conclusion}
+
+En combinant les résultats précédents :
+\[
+  \E\big[R_n(\hat\theta)\big] \overset{\text{(Q2)}}{=} \E_\varepsilon\Big[\frac1n\|A\varepsilon\|^2\Big] \overset{\text{(Q4)}}{=} \frac{\sigma^2}{n}\tr(A^TA) \overset{\text{(Q5)}}{=} \frac{\sigma^2}{n}\tr(A).
+\]
+Il reste à calculer $\tr(A)$ :
+\[
+  \tr(A) = \tr(I_n - P) = \tr(I_n) - \tr(P) = n - \tr\big(X(X^TX)^{-1}X^T\big).
+\]
+Par invariance cyclique de la trace ($\tr(UV)=\tr(VU)$) :
+\[
+  \tr\big(X(X^TX)^{-1}X^T\big) = \tr\big((X^TX)^{-1}X^TX\big) = \tr(I_d) = d.
+\]
+D'où $\tr(A) = n-d$, et finalement
+\[
+  \boxed{\E\big[R_n(\hat\theta)\big] = \E\big[R_X(\hat\theta)\big] = \frac{n-d}{n}\sigma^2},
+\]
+ce qui établit la Proposition 1.
+
+\subsection*{Question 7 (M)}
+
+On cherche $\E\Big[\dfrac{\|y-X\hat\theta\|^2}{n-d}\Big]$.
+
+\begin{proof}
+On a établi $\E[R_n(\hat\theta)] = \E\big[\tfrac1n\|y-X\hat\theta\|^2\big] = \dfrac{n-d}{n}\sigma^2$, donc par linéarité de l'espérance :
+\[
+  \E\big[\|y-X\hat\theta\|^2\big] = (n-d)\,\sigma^2.
+\]
+En divisant par la constante (déterministe) $n-d > 0$ :
+\[
+  \boxed{\E\Big[\frac{\|y-X\hat\theta\|^2}{n-d}\Big] = \sigma^2}.
+\]
+\end{proof}
+
+\begin{remark}
+Ce résultat fournit un \textbf{estimateur sans biais} de $\sigma^2$, à savoir $\hat\sigma^2 = \dfrac{\|y-X\hat\theta\|^2}{n-d}$ (l'estimateur classique de la variance résiduelle en régression linéaire, avec correction des degrés de liberté). La Question 8 (C) propose une vérification numérique de ce résultat par simulation ; le code correspondant est fourni séparément.
+\end{remark}
+
+\end{document}

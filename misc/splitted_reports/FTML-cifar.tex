@@ -1,0 +1,283 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+\newcommand{\inner}[2]{\langle #1, #2\rangle}
+\newcommand{\T}{^{\top}}
+
+\title{\textbf{CIFAR-10 — Exercices 6 \& 7}\\[2pt]
+\large Rapport et justification des choix}
+\author{Matis Codjia\\ \texttt{matis.codjia@epita.fr}
+  \and
+   Simon Naulet\\ \texttt{simon.naulet@epita.fr}
+  \and
+  Brendan Martin\\ \texttt{brendan.martin@epita.fr}
+  \and
+   Lilou Mayot\\ \texttt{lilou.mayot@epita.fr}}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-1.2em}
+
+\begin{abstract}
+\noindent On classe les images CIFAR-10 sans réseau de neurones, avec des
+méthodes classiques d'optimisation et d'algèbre linéaire (SVM, noyaux, PCA,
+$K$-means). L'exercice~6 traite la classification supervisée (SVM, puis passage à
+l'échelle par Nyström) ; l'exercice~7 apprend des représentations non supervisées,
+évaluées par sonde linéaire. Toutes les valeurs numériques proviennent du notebook
+\texttt{cifar\_ex6\_7.ipynb}.
+\end{abstract}
+
+\section{Jeu de données et problème}
+\paragraph{Présentation (CIFAR-10).} Le jeu de données est CIFAR-10, téléchargé
+depuis \url{https://www.cs.toronto.edu/~kriz/cifar.html} (A.~Krizhevsky, 2009). Il
+contient $60\,000$ petites photographies couleur de $32\times32$ pixels, réparties
+en $10$ classes d'objets du quotidien : avion, automobile, oiseau, chat, cerf,
+chien, grenouille, cheval, bateau, camion. Chaque image est fournie comme un
+vecteur de $d=32\times32\times3=3072$ entiers dans $[0,255]$ (les trois canaux RVB
+mis bout à bout, dans cet ordre), stocké dans des fichiers \texttt{pickle}. Les
+classes sont \textbf{équilibrées} ($6\,000$ images chacune) et le découpage
+officiel donne $50\,000$ images d'entraînement et $10\,000$ de test. Point moins
+évident pour qui ne connaît pas ces données : aucune variable n'a de sens prise
+isolément (un pixel seul n'apprend rien), l'information est dans les
+\emph{corrélations spatiales} entre pixels voisins ; de plus certaines classes sont
+visuellement proches (chat/chien, automobile/camion), ce qui annonce des confusions.
+
+\paragraph{Problème.} On résout une \textbf{classification multi-classes} :
+prédire l'étiquette $y\in\{0,\dots,9\}$ (la classe de l'objet) à partir des seules
+$3072$ intensités de pixels $x$, sans information annexe. C'est une brique de base
+de la vision par ordinateur (tri et étiquetage automatique d'images, modération de
+contenu, indexation visuelle) ; CIFAR-10 sert surtout de banc d'essai standard pour
+\emph{comparer} des méthodes, ce qui est précisément notre objectif.
+
+\section{Cadre et protocole}
+On note les données $\{(x_i,y_i)\}_{i=1}^n$, $x_i\in\R^{d}$, $d=3072$. Le SVM à
+noyau \emph{exact} demande une matrice de Gram $n\times n$ ($\sim$20\,Go pour
+$n=50\,000$) : on l'évalue donc sur un sous-échantillon $10\,000/2\,000$, tandis que
+les méthodes linéaires, Nyström, PCA et $K$-means exploitent les données complètes.
+
+\paragraph{Risque réel vs risque empirique.} On cherche un classifieur $f$ de petit
+\emph{risque réel} $R(f)=\mathbb E_{(x,y)\sim p}\big[\ell(f(x),y)\big]$, espérance de
+la perte sur la vraie distribution $p$ (inconnue), ici avec la perte $0/1$. Comme
+$p$ est inaccessible, on ne dispose que du \emph{risque empirique}
+$R_n(f)=\tfrac1n\sum_{i=1}^n \ell(f(x_i),y_i)$, moyenne sur l'échantillon, que les
+modèles minimisent (éventuellement régularisé). L'écart $R(f)-R_n(f)$ est l'erreur
+de \emph{généralisation} : un modèle qui colle au train ($R_n$ petit) mais
+généralise mal ($R$ grand) \emph{sur-apprend}. Le jeu de test, jamais utilisé pour
+l'apprentissage ni le réglage, fournit un estimateur non biaisé de $R(f)$ : c'est
+pourquoi on ne le consulte qu'une fois, et l'accuracy test rapportée estime $1-R(f)$.
+
+\paragraph{Préparation des données.} Les pixels sont \textbf{standardisés}
+(centrage/réduction par variable) avant les modèles à distance ($k$-NN, SVM) : sans
+cela, les coordonnées de plus forte variance domineraient le calcul des distances et
+du noyau. Pour la PCA on centre simplement les données (la covariance n'a de sens
+que centrée).
+
+\paragraph{Hyperparamètres.} Pour le SVM RBF, on sélectionne le couple
+$(C,\gamma)$ par \textbf{validation croisée} (\texttt{GridSearchCV}, $3$ plis
+stratifiés) sur la grille $C\in\{1,10,100\}$, $\gamma\in\{\text{scale},10^{-3},
+10^{-2}\}$. Une recherche exhaustive sur $50\,000$ images avec noyau exact étant
+trop coûteuse, cette CV se fait sur un sous-échantillon d'entraînement
+($3\,000$ images) ; le meilleur couple est ensuite ré-entraîné sur les $10\,000$
+images, puis évalué \emph{une seule fois} sur le test. Pour les méthodes passant à
+l'échelle (Nyström, $K$-means), trop lourdes pour une grille complète, on conserve
+des valeurs usuelles. Dans tous les cas, le jeu de test ne sert jamais à choisir un
+modèle ni un hyperparamètre.
+
+\section{Exercice 6 — Classification supervisée}
+
+\subsection{Baselines}
+On situe trois baselines de référence (sur pixels bruts) :
+\begin{itemize}\itemsep2pt
+  \item \textbf{$k$-NN} : vote majoritaire des $k$ plus proches voisins ; aucune
+  optimisation, illustration du compromis biais–variance.
+  \item \textbf{Régression softmax} : $p(y=c\mid x)=e^{w_c\T x}/\sum_j e^{w_j\T x}$,
+  minimisation de l'entropie croisée $-\sum_i\log p(y_i\mid x_i)$, fonction
+  \emph{convexe} à gradient explicite.
+  \item \textbf{SVM linéaire} : perte hinge régularisée
+  $\tfrac12\norm{w}^2+C\sum_i\max(0,1-y_i(w\T x_i+b))$ (cf.~\ref{sec:svm}).
+\end{itemize}
+
+\subsection{SVM à marge maximale : dérivation}\label{sec:svm}
+\paragraph{Primal (marge dure).} Pour des données séparables, $y_i\in\{\pm1\}$,
+l'hyperplan $w\T x+b=0$ a une marge $2/\norm{w}$ ; la maximiser revient à
+\begin{equation}
+\min_{w,b}\ \tfrac12\norm{w}^2
+\quad\text{s.c.}\quad y_i(w\T x_i+b)\ge 1 \ \ \forall i .
+\end{equation}
+\paragraph{Marge souple.} Pour des données non séparables, on relâche par des
+écarts $\xi_i\ge0$ :
+\begin{equation}
+\min_{w,b,\xi}\ \tfrac12\norm{w}^2 + C\sum_i\xi_i
+\quad\text{s.c.}\quad y_i(w\T x_i+b)\ge 1-\xi_i,\ \xi_i\ge0 ,
+\end{equation}
+dont l'optimum donne $\xi_i=\max(0,1-y_i(w\T x_i+b))$ : la perte \emph{hinge}.
+\paragraph{Lagrangien.} Avec $\alpha_i\ge0$ (marge) et $\mu_i\ge0$ ($\xi_i\ge0$),
+\[
+\mathcal L=\tfrac12\norm{w}^2+C\sum_i\xi_i
+-\sum_i\alpha_i\big[y_i(w\T x_i+b)-1+\xi_i\big]-\sum_i\mu_i\xi_i .
+\]
+L'annulation des dérivées donne les conditions stationnaires
+\begin{equation}
+w=\sum_i\alpha_i y_i x_i,\qquad
+\sum_i\alpha_i y_i=0,\qquad
+\alpha_i = C-\mu_i .
+\end{equation}
+\paragraph{Dual.} En réinjectant,
+\begin{equation}
+\max_{\alpha}\ \sum_i\alpha_i-\tfrac12\sum_{i,j}\alpha_i\alpha_j\,y_iy_j\,
+\inner{x_i}{x_j}
+\quad\text{s.c.}\quad 0\le\alpha_i\le C,\ \sum_i\alpha_i y_i=0 .
+\end{equation}
+Problème quadratique concave où les données n'interviennent \emph{que} par
+produits scalaires.
+\paragraph{KKT et vecteurs supports.} La complémentarité
+$\alpha_i\big[y_i(w\T x_i+b)-1+\xi_i\big]=0$ impose $\alpha_i\neq0$ uniquement pour
+les points sur ou dans la marge — les \textbf{vecteurs supports} : la solution
+n'en dépend que d'eux (96\,\% des points ici, donnée difficile).
+\paragraph{Kernel trick.} Tout passant par $\inner{x_i}{x_j}$, on substitue un
+noyau $k(x_i,x_j)=\inner{\varphi(x_i)}{\varphi(x_j)}$. Pour un noyau symétrique
+défini positif, une telle application $\varphi$ existe (théorème de Mercer), et la
+solution s'écrit $w=\sum_i\alpha_i y_i\varphi(x_i)$, d'où le classifieur
+$f(x)=\sum_i\alpha_i y_i\,k(x_i,x)+b$. Le RBF
+$k(x,x')=\exp(-\gamma\norm{x-x'}^2)$ correspond à un $\varphi$ de dimension
+infinie.
+
+\subsection{Passage à l'échelle : approximation de Nyström}\label{sec:nystrom}
+La matrice de Gram exacte $K\in\R^{n\times n}$ est inabordable pour $n=50\,000$.
+On l'approche par une matrice de \textbf{rang faible} $m\ll n$. Soit $m$ points de
+référence (\emph{landmarks}) et les blocs
+\[
+C\in\R^{n\times m}\ (\text{noyau tous}\times\text{landmarks}),\qquad
+W\in\R^{m\times m}\ (\text{landmarks}\times\text{landmarks}),
+\]
+\begin{equation}
+\boxed{\ \tilde K = C\,W^{+}C\T\ }\qquad(\text{rang}\le m),
+\end{equation}
+$W^{+}$ étant le pseudo-inverse. \textbf{Carte de features explicite :}
+diagonalisons $W=U\Lambda U\T$ et posons $Z=C\,U\,\Lambda^{-1/2}\in\R^{n\times m}$.
+Alors
+\begin{equation}
+ZZ\T = C\,U\Lambda^{-1}U\T C\T = C\,W^{+}C\T = \tilde K ,
+\end{equation}
+si bien que $\inner{z_i}{z_j}\approx k(x_i,x_j)$ : on a \emph{rendu le noyau
+explicite}. Le SVM à noyau devient un SVM \emph{linéaire} dans $\R^{m}$ (coût
+$O(nm)$), applicable aux $50\,000$ images sans jamais former $K$.
+
+\paragraph{Pourquoi cela fonctionne.} Si le spectre de $K$ décroît vite (cas du
+RBF), $K$ est presque de rang faible et $\tilde K$ en est une bonne
+reconstruction, comme pour Eckart–Young en PCA (\S\ref{sec:pca}). L'erreur
+relative mesurée $\norm{K-\tilde K}_F/\norm{K}_F$ vaut $0.167,\ 0.093,\ 0.059$
+pour $m=50,150,400$ : elle chute vite, ce qui confirme cette décroissance du
+spectre.
+
+\subsection{Résultats et choix}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Modèle & données & acc.\ test \\
+\midrule
+$k$-NN ($k{=}10$)        & 10k/2k & 0.281 \\
+Softmax                  & 10k/2k & 0.292 \\
+SVM linéaire (hinge)     & 10k/2k & 0.308 \\
+SVM RBF \emph{exact}     & 10k/2k & 0.479 \\
+Nyström RBF $m{=}500$    & \textbf{50k}/10k & 0.481 \\
+Nyström RBF $m{=}1000$   & \textbf{50k}/10k & \textbf{0.504} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent\textbf{Choix.} Le RBF est retenu (non-linéarité nécessaire : le linéaire
+plafonne à $0.31$). Nyström sur $50\,000$ atteint la précision du RBF exact sur
+$10\,000$ \emph{pour un coût comparable} : à budget égal, il vaut mieux plus de
+données via une approximation contrôlée que le noyau exact sur peu de données. En
+pixels bruts on plafonne toutefois vers $0.50$ : la limite est la
+\emph{représentation}, d'où l'exercice~7.
+
+\section{Exercice 7 — Représentations non supervisées}
+On apprend une application $\varphi$ \emph{sans étiquettes}, puis on teste les
+latents par une \textbf{sonde linéaire} (classifieur linéaire sur représentations
+gelées, $10\,000$ exemples d'entraînement, test complet). Une bonne représentation
+rend la tâche \emph{linéairement} séparable.
+
+\paragraph{Choix du scoring.} L'étape non supervisée (PCA, $K$-means) n'utilise pas
+les étiquettes ; on ne peut donc pas la noter directement par une précision. On
+choisit comme score la \textbf{précision de la sonde linéaire} : elle mesure
+exactement ce qui nous intéresse, à savoir si la représentation rend les classes
+\emph{linéairement} séparables, et reste comparable d'une représentation à l'autre
+(même classifieur, même taille d'entraînement). Une mesure non supervisée interne
+comme l'inertie du $K$-means renseignerait sur la compacité des amas mais pas sur
+leur utilité pour la classification, qui est notre but.
+
+\subsection{PCA : dérivation (Eckart–Young)}\label{sec:pca}
+Sur données centrées, covariance $\Sigma=\tfrac1n X\T X=U\Lambda U\T$,
+$\lambda_1\ge\cdots\ge\lambda_d\ge0$. Deux lectures équivalentes :
+\emph{variance maximale} ($\arg\max_{\norm u=1} u\T\Sigma u = u_1$, quotient de
+Rayleigh) et \emph{reconstruction minimale}
+($\min \sum_i\norm{x_i-Px_i}^2$ sur les projecteurs de rang $k$), donnant le même
+$U_k=[u_1,\dots,u_k]$.
+\paragraph{Théorème d'Eckart–Young.} $X_k=XU_kU_k\T$ est la meilleure
+approximation de rang $k$ de $X$ (normes de Frobenius et spectrale), d'erreur
+$\sum_{j>k}\lambda_j$. C'est ce qui justifie de garder les premières composantes
+comme représentation. Mesuré : variance cumulée $0.86$ à $k{=}64$, $0.96$ à
+$k{=}256$.
+
+\subsection{Dictionnaire $K$-means (Coates \& Ng)}
+$K$-means apprend $K$ centroïdes minimisant $\sum_i\min_k\norm{p_i-c_k}^2$
+(algorithme de Lloyd : assignation $\leftrightarrow$ moyenne, décroissance
+monotone, convergence vers un minimum local) : une quantification vectorielle
+servant de \emph{dictionnaire}. La métrique est la \textbf{distance euclidienne},
+cohérente avec l'objectif quadratique de $K$-means et appliquée \emph{après}
+blanchiment ZCA, qui décorrèle les pixels pour que cette distance ne soit pas
+faussée par leurs corrélations. Pipeline :
+\begin{enumerate}\itemsep1pt
+  \item patches $6\!\times\!6\!\times\!3$ aléatoires, normalisés en contraste
+  (centrage + variance unité) ;
+  \item \textbf{blanchiment ZCA} $p\mapsto Wp$, $W=U(\Lambda+\varepsilon I)^{-1/2}U\T$
+  (covariance des patches) : décorrélation — encore le théorème spectral ;
+  \item dictionnaire : $K$-means sur patches blanchis ;
+  \item encodage \emph{triangle}
+  $f_k(p)=\max\!\big(0,\bar d(p)-\norm{p-c_k}\big)$ (code parcimonieux, non négatif),
+  $\bar d$ distance moyenne aux centroïdes ;
+  \item \textbf{pooling} par quadrants $2\!\times\!2 \Rightarrow 4K$ features,
+  passées à un SVM linéaire.
+\end{enumerate}
+Intuition : blanchiment + $K$-means fabriquent des détecteurs de bords/couleurs ;
+le pooling apporte l'invariance ; la tâche devient linéairement séparable.
+
+\subsection{Résultats et choix}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Représentation & dim & acc.\ test (sonde lin.) \\
+\midrule
+Pixels bruts                       & 3072 & 0.323 \\
+PCA                                & 256  & 0.380 \\
+\textbf{Dictionnaire $K$-means}    & 1024 & \textbf{0.659} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent\textbf{Choix.} À classifieur \emph{linéaire fixé}, passer des pixels au
+dictionnaire $K$-means double quasiment la précision ($0.32\!\to\!0.66$), et sans
+étiquette : la difficulté de CIFAR est surtout dans la représentation, pas dans le
+classifieur. Augmenter $K$ (jusqu'à $1600$) pousse vers $\sim0.77$ (Coates \& Ng) ;
+on garde $K{=}256$ pour un temps de calcul modéré.
+
+\section{Conclusion}
+On retrouve deux outils principaux. D'une part l'optimisation convexe : le SVM se
+résout via son dual (KKT, vecteurs supports), le kernel trick déplace la
+non-linéarité, et Nyström permet le passage à l'échelle. D'autre part la
+diagonalisation des matrices symétriques (théorème spectral), qui sert pour la PCA,
+le blanchiment ZCA et le bloc $W$ de Nyström. Le gain décisif vient finalement de
+l'apprentissage non supervisé de représentations ($K$-means, PCA) plutôt que du
+choix du classifieur.
+
+\end{document}
